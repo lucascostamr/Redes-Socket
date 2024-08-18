@@ -7,9 +7,15 @@ host = '127.0.0.1'
 porta = 5000
 
 clients = []
+messages = []
 lock = threading.Lock()
 
-def send(data):
+def get_client(data):
+    with lock:
+        client = [client for client in clients if client == data[name]]
+        conexao.send(json.dumps(client).encode('utf-8'))
+
+def save(data):
     with lock:
         clients.append(data)
         print('Cliente salvo: {}'.format(data))
@@ -25,8 +31,9 @@ def getClient(data):
         conexao.send(json.dumps(filtered_client).encode('utf-8'))
 
 actions = {
-    "send": send,
-    "list": _list
+    "save": save,
+    "list": _list,
+    "get_client": get_client
 }
 
 def handle_client(conexao, cliente):

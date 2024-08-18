@@ -5,15 +5,11 @@ import json
 host = '127.0.0.1'
 portaServer = 5000
 soqueteServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-soqueteClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-soquete = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-origem = (host, porta)
-soquete.bind(origem)
-soquete.listen(5)
-
-soqueteServer.connect((host, portaServer))
+destino = (host, portaServer)
+soqueteServer.connect(destino)
 continuar = True
+
+clients_registered = []
 
 def _list(name):
     data = {
@@ -21,13 +17,20 @@ def _list(name):
         "name": name
     }
 
-    soquete.send(json.dumps(data).encode('utf-8'))
-    response = soquete.recv(1024)
+    soqueteServer.send(json.dumps(data).encode('utf-8'))
+    response = soqueteServer.recv(1024)
     messages = json.loads(response)
 
     print("\nMensagens recebidas:")
     for msg in messages:
         print("De {}: {}".format(msg["name"], msg["message"]))
+
+def connectSoqueteDestinatario(connection):
+    if len(connection) == 0:
+        return None
+    soquete = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    soquete.connect(connection)
+    return soquete
 
 def send(name):
     destinatario = raw_input("Digite o destinatario: \n")
@@ -40,11 +43,25 @@ def send(name):
         "message": message
     }
 
-    soqueteServer.send(json.dumps(data).encode('utf-8'))
-    response = soqueteServer.recv(1024)
-    client_dest = json.loads(response)
-    soqueteClient.connect((host, client_dest["port"]))
-    soqueteClient.close()
+    destinatario = [client for client in clients_registered if client == destinatario]
+
+    if destinatario:
+        soqueteDestinatario = connectSoqueteDestinatario(destinatario)
+        soqueteDestinatario.send(json.dumps(data).encode('utf-8'))
+    else:
+        request = {
+            "action": "get_client",
+            "client_name": destinatario
+        }
+
+        soqueteServer.send(json.dumps(request).encode('utf-8'))
+        response = soqueteServer.recv(1024)
+        destinatario = json.loads(response)
+        if len(destinatario) == 0:
+            print("Cliente nao encontrado")
+            return
+        soqueteDestinatario = connectSoqueteDestinatario(destinatario)
+        soqueteDestinatario.send(json.dumps(data).encode('utf-8'))
 
 def _exit(*args):
     global continuar
@@ -60,6 +77,8 @@ name = raw_input("Digite seu nome: \n")
 
 while continuar:
     option = raw_input("Listar (1) | Enviar (2) | Sair (3): \n")
-    actions[option](name)
+    response = actions[option](name)
+    if not response:
+        _exit()
 
-soquete.close()
+soqueteServer.close()
