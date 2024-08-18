@@ -10,13 +10,21 @@ clients = []
 messages = []
 lock = threading.Lock()
 
+def _get_available_port():
+    temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    temp_socket.bind((host, 0))
+    _, port = temp_socket.getsockname()
+    temp_socket.close()
+    return port
+
 def add_client(data, *args):
+    client_port = _get_available_port()
     with lock:
         host, port = args[0]
         client = {
             "name": data["client_name"],
             "host": host,
-            "port": port
+            "port": client_port
         }
         clients.append(client)
         conexao.send(json.dumps(client).encode('utf-8'))

@@ -75,11 +75,14 @@ def send(name):
 def _exit(*args):
     global continuar
     continuar = False
+    client_thread = args[1]
+    client_thread.
+
 
 def handle_client(soquete):
-    conexao, cliente = soquete.accept()
-    print('Conectado por: ' + client[1])
     while True:
+        conexao, cliente = soquete.accept()
+        print('Conectado por: ' + client[1])
         message = conexao.recv(1024)
         if not message: break
         data = json.loads(message)
@@ -105,7 +108,8 @@ soqueteServer = _connect_to_soquete(serverAddress)
 response = _send_to_soquete(request, soqueteServer)
 
 soqueteClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-soqueteClient.bind(('127.0.0.1', 0))
+soqueteClient.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+soqueteClient.bind(('127.0.0.1', response["port"]))
 soqueteClient.listen(5)
 
 print("Cliente  iniciado e aguardando conexões...")
@@ -118,5 +122,4 @@ client_thread.start()
 
 while continuar:
     option = raw_input("Listar (1) | Enviar (2) | Sair (3): \n")
-    response = actions[option](client_name)
-
+    response = actions[option](client_name, client_thread)
