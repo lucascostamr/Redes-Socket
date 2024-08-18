@@ -3,10 +3,16 @@ import socket
 import json
 
 host = '127.0.0.1'
-porta = 5000
+portaServer = 5000
+soqueteServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+soqueteClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
 soquete = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-destino = (host, porta)
-soquete.connect(destino)
+origem = (host, porta)
+soquete.bind(origem)
+soquete.listen(5)
+
+soqueteServer.connect((host, portaServer))
 continuar = True
 
 def _list(name):
@@ -23,18 +29,22 @@ def _list(name):
     for msg in messages:
         print("De {}: {}".format(msg["name"], msg["message"]))
 
-def save(name):
+def send(name):
     destinatario = raw_input("Digite o destinatario: \n")
     message = raw_input("Digite a mensagem: \n")
 
     data = {
-        "action": "save",
+        "action": "send",
         "name": name,
         "destinatario": destinatario,
         "message": message
     }
 
-    soquete.send(json.dumps(data).encode('utf-8'))
+    soqueteServer.send(json.dumps(data).encode('utf-8'))
+    response = soqueteServer.recv(1024)
+    client_dest = json.loads(response)
+    soqueteClient.connect((host, client_dest["port"]))
+    soqueteClient.close()
 
 def _exit(*args):
     global continuar
@@ -42,7 +52,7 @@ def _exit(*args):
 
 actions = {
     "1": _list,
-    "2": save,
+    "2": send,
     "3": _exit
 }
 
