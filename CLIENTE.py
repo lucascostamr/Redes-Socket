@@ -3,6 +3,8 @@ import socket
 import json
 import threading
 
+lock = threading.Lock()
+
 continuar = True
 
 clients_registered = []
@@ -73,22 +75,30 @@ def send(name):
     _send_to_soquete(request, soqueteDestinatario)
 
 def _exit(*args):
-    global continuar
-    continuar = False
-    client_thread = args[1]
-    client_thread.
+    with lock:
+        global continuar
+        continuar = False
+        request = {
+            "action": "3",
+        }
+        client = args[1]
+        soquete = _connect_to_soquete((client["host"], client["port"]))
+        _send_to_soquete(request, soquete)
 
 
 def handle_client(soquete):
-    while True:
-        conexao, cliente = soquete.accept()
-        print('Conectado por: ' + client[1])
-        message = conexao.recv(1024)
-        if not message: break
-        data = json.loads(message)
-        actions[data["action"]](data, cliente)
-    conexao.close()
-    print('Coneccao fechada')
+        while continuar:
+            conexao, cliente = soquete.accept()
+            if not continuar:
+                conexao.send(json.dumps({"connection": "closed"}).encode('utf-8'))
+                break
+            print('Conectado por: ', cliente[1])
+            message = conexao.recv(1024)
+            if not message: break
+            data = json.loads(message)
+            actions[data["action"]](data, cliente)
+        conexao.close()
+        print('Coneccao fechada')
 
 actions = {
     "1": _list,
@@ -122,4 +132,4 @@ client_thread.start()
 
 while continuar:
     option = raw_input("Listar (1) | Enviar (2) | Sair (3): \n")
-    response = actions[option](client_name, client_thread)
+    response = actions[option](client_name, response)
