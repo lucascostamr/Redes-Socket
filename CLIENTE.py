@@ -42,12 +42,12 @@ def connectSoqueteDestinatario(connection):
     soquete.connect(connection)
     return soquete
 
-def send(name):
+def send(name, *args):
     destinatario = raw_input("Digite o destinatario: \n")
     message = raw_input("Digite a mensagem: \n")
 
     request = {
-        "action": "send",
+        "action": "4",
         "name": name,
         "destinatario": destinatario,
         "message": message
@@ -56,23 +56,32 @@ def send(name):
     destinatarioAddress = [(host, port) for client in clients_registered if client["name"] == destinatario]
 
     if not destinatarioAddress:
-        request = {
+        requestDestinatario = {
             "action": "get_client",
             "client_name": destinatario
         }
         serverAddress = ('127.0.0.1', 5000)
         soqueteServer = _connect_to_soquete(serverAddress)
-        destinatarioAddress = _send_to_soquete(request, soqueteServer)
+        destinatarioAddress = _send_to_soquete(requestDestinatario, soqueteServer)
 
         if not destinatarioAddress:
             print("Destinatario nao encontrado")
             return
         soqueteDestinatario = _connect_to_soquete(destinatarioAddress)
         _send_to_soquete(request, soqueteDestinatario)
+        print(destinatarioAddress)
+        clients_registered.append(destinatarioAddress)
+        print(clients_registered)
         return
 
     soqueteDestinatario = _connect_to_soquete(destinatarioAddress)
     _send_to_soquete(request, soqueteDestinatario)
+
+def get_message(message, *args):
+    print(message)
+    conexao = args[0]
+    conexao.send(json.dumps({"connection": "closed"}).encode('utf-8'))
+    conexao.close()
 
 def _exit(*args):
     with lock:
@@ -87,23 +96,24 @@ def _exit(*args):
 
 
 def handle_client(soquete):
-        while continuar:
-            conexao, cliente = soquete.accept()
-            if not continuar:
-                conexao.send(json.dumps({"connection": "closed"}).encode('utf-8'))
-                break
-            print('Conectado por: ', cliente[1])
-            message = conexao.recv(1024)
-            if not message: break
-            data = json.loads(message)
-            actions[data["action"]](data, cliente)
-        conexao.close()
-        print('Coneccao fechada')
+    while continuar:
+        conexao, cliente = soquete.accept()
+        if not continuar:
+            conexao.send(json.dumps({"connection": "closed"}).encode('utf-8'))
+            break
+        print('Conectado por: ', cliente[1])
+        message = conexao.recv(1024)
+        if not message: break
+        data = json.loads(message)
+        actions[data["action"]](data, conexao)
+    conexao.close()
+    print('Coneccao fechada')
 
 actions = {
     "1": _list,
     "2": send,
-    "3": _exit
+    "3": _exit,
+    "4": get_message
 }
 
 client_name = raw_input("Digite seu nome: \n")

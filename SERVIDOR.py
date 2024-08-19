@@ -50,7 +50,6 @@ def get_client(data, *args):
         if not filtered_client:
             conexao.send(json.dumps([]))
             return
-        print(filtered_client)
         conexao.send(json.dumps(filtered_client[0]).encode('utf-8'))
 
 actions = {
