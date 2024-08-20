@@ -73,11 +73,18 @@ actions = {
     "3": _exit
 }
 
-name = raw_input("Digite seu nome: \n")
+client_name = raw_input("Digite seu nome: \n")
+
+request = {
+    "action": "register",
+    "client_name": client_name
+}
+
+soqueteServer.send(json.dumps(request).encode('utf-8'))
 
 while continuar:
     option = raw_input("Listar (1) | Enviar (2) | Sair (3): \n")
-    response = actions[option](name)
+    response = actions[option](client_name)
     if not response:
         _exit()
 

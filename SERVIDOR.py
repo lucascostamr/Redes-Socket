@@ -10,12 +10,22 @@ clients = []
 messages = []
 lock = threading.Lock()
 
-def get_client(data):
+def add_client(data, *args):
+    with lock:
+        host, port = args[0]
+        client = {
+            "name": data["client_name"],
+            "host": host,
+            "port": port
+        }
+        clients.append(data)
+
+def get_client(data, *args):
     with lock:
         client = [client for client in clients if client == data[name]]
         conexao.send(json.dumps(client).encode('utf-8'))
 
-def save(data):
+def save(data, *args):
     with lock:
         clients.append(data)
         print('Cliente salvo: {}'.format(data))
@@ -25,7 +35,7 @@ def _list(*args):
     with lock:
         conexao.send(json.dumps(clients).encode('utf-8'))
 
-def getClient(data):
+def getClient(data, *args):
     filtered_client = [client for client in messages if client["name"] == data["destinatario"]]
     with lock:
         conexao.send(json.dumps(filtered_client).encode('utf-8'))
@@ -33,18 +43,17 @@ def getClient(data):
 actions = {
     "save": save,
     "list": _list,
-    "get_client": get_client
+    "get_client": get_client,
+    "register": add_client
 }
 
 def handle_client(conexao, cliente):
     print('Conectado por', cliente[1])
-    port = cliente[1]
     while True:
         message = conexao.recv(1024)
         if not message: break
         data = json.loads(message)
-        data["port"] = port
-        actions[data["action"]](data)
+        actions[data["action"]](data, cliente)
     conexao.close()
 
 
@@ -58,5 +67,7 @@ print("Servidor iniciado e aguardando conexões...")
 while True:
     conexao, cliente = soquete.accept()
     client_thread = threading.Thread(
-        target=handle_client, args=(conexao, cliente))
+        target=handle_client,
+        args=(conexao, cliente)
+    )
     client_thread.start()
