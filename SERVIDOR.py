@@ -18,11 +18,12 @@ def add_client(data, *args):
             "host": host,
             "port": port
         }
-        clients.append(data)
+        clients.append(client)
+        conexao.send(json.dumps(client).encode('utf-8'))
 
 def get_client(data, *args):
     with lock:
-        client = [client for client in clients if client == data[name]]
+        client = [client for client in clients if client == data["client_name"]]
         conexao.send(json.dumps(client).encode('utf-8'))
 
 def save(data, *args):
@@ -35,10 +36,14 @@ def _list(*args):
     with lock:
         conexao.send(json.dumps(clients).encode('utf-8'))
 
-def getClient(data, *args):
-    filtered_client = [client for client in messages if client["name"] == data["destinatario"]]
+def get_client(data, *args):
     with lock:
-        conexao.send(json.dumps(filtered_client).encode('utf-8'))
+        filtered_client = [(client["host"], client["port"]) for client in clients if client["name"] == data["client_name"]]
+        if not filtered_client:
+            conexao.send(json.dumps([]))
+            return
+        print(filtered_client)
+        conexao.send(json.dumps(filtered_client[0]).encode('utf-8'))
 
 actions = {
     "save": save,
@@ -55,7 +60,7 @@ def handle_client(conexao, cliente):
         data = json.loads(message)
         actions[data["action"]](data, cliente)
     conexao.close()
-
+    print('Coneccao fechada')
 
 soquete = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 origem = (host, porta)
