@@ -89,6 +89,7 @@ def _exit(*args):
             "action": "3",
         }
         client = args[1]
+        print(client)
         soquete = _connect_to_soquete((client["host"], client["port"]))
         _send_to_soquete(request, soquete)
 
@@ -140,4 +141,4 @@ client_thread.start()
 
 while continuar:
     option = raw_input("Listar (1) | Enviar (2) | Sair (3): \n")
-    response = actions[option](client_name, response)
+    actions[option](client_name, response)
