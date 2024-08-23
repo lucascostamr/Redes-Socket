@@ -16,6 +16,7 @@ def _send_to_soquete(request, soquete):
     return json.loads(response)
 
 def _connect_to_soquete(address):
+    print(address)
     soqueteServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     soqueteAddress = (address[0], address[1])
     soqueteServer.connect(soqueteAddress)
@@ -53,7 +54,7 @@ def send(name, *args):
         "message": message
     }
 
-    destinatarioAddress = [(host, port) for client in clients_registered if client["name"] == destinatario]
+    destinatarioAddress = [client for client in clients_registered if client["name"] == destinatario]
 
     if not destinatarioAddress:
         requestDestinatario = {
@@ -63,18 +64,15 @@ def send(name, *args):
         serverAddress = ('127.0.0.1', 5000)
         soqueteServer = _connect_to_soquete(serverAddress)
         destinatarioAddress = _send_to_soquete(requestDestinatario, soqueteServer)
-
         if not destinatarioAddress:
             print("Destinatario nao encontrado")
             return
-        soqueteDestinatario = _connect_to_soquete(destinatarioAddress)
+        soqueteDestinatario = _connect_to_soquete((destinatarioAddress["host"], destinatarioAddress["port"]))
         _send_to_soquete(request, soqueteDestinatario)
-        print(destinatarioAddress)
         clients_registered.append(destinatarioAddress)
-        print(clients_registered)
         return
 
-    soqueteDestinatario = _connect_to_soquete(destinatarioAddress)
+    soqueteDestinatario = _connect_to_soquete((destinatarioAddress[0]["host"], destinatarioAddress[0]["port"]))
     _send_to_soquete(request, soqueteDestinatario)
 
 def get_message(message, *args):

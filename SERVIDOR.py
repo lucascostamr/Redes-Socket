@@ -46,10 +46,11 @@ def _list(*args):
 
 def get_client(data, *args):
     with lock:
-        filtered_client = [(client["host"], client["port"]) for client in clients if client["name"] == data["client_name"]]
+        filtered_client = [client for client in clients if client["name"] == data["client_name"]]
         if not filtered_client:
             conexao.send(json.dumps([]))
             return
+        
         conexao.send(json.dumps(filtered_client[0]).encode('utf-8'))
 
 actions = {
