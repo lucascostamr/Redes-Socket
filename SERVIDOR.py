@@ -26,8 +26,16 @@ def add_client(data, *args):
             "host": host,
             "port": client_port
         }
-        clients.append(client)
-        conexao.send(json.dumps(client).encode('utf-8'))
+        try:
+            index = clients.index(data["client_name"])
+            clients[index]["port"] = client_port
+            print(clients)
+        except Exception as e:
+            print(e)
+            clients.append(client)
+        finally:
+            conexao.send(json.dumps(client).encode('utf-8'))
+        print(clients)
 
 def get_client(data, *args):
     with lock:
