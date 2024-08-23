@@ -17,25 +17,30 @@ def _get_available_port():
     temp_socket.close()
     return port
 
+def _update_client_port(client_name, new_port):
+    for client in clients:
+        if client.get("name") == client_name:
+            client["port"] = new_port
+            return client
+    return None
+
 def add_client(data, *args):
     client_port = _get_available_port()
     with lock:
         host, port = args[0]
-        client = {
-            "name": data["client_name"],
-            "host": host,
-            "port": client_port
-        }
-        try:
-            index = clients.index(data["client_name"])
-            clients[index]["port"] = client_port
-            print(clients)
-        except Exception as e:
-            print(e)
-            clients.append(client)
-        finally:
-            conexao.send(json.dumps(client).encode('utf-8'))
-        print(clients)
+
+        is_client = _update_client_port(data["client_name"], client_port)
+
+        if not is_client:
+            new_client = {
+                "name": data["client_name"],
+                "host": host,
+                "port": client_port
+            }
+            clients.append(new_client)
+            conexao.send(json.dumps(new_client).encode('utf-8'))
+
+        conexao.send(json.dumps(is_client).encode('utf-8'))
 
 def get_client(data, *args):
     with lock:
@@ -58,7 +63,7 @@ def get_client(data, *args):
         if not filtered_client:
             conexao.send(json.dumps([]))
             return
-        
+
         conexao.send(json.dumps(filtered_client[0]).encode('utf-8'))
 
 actions = {
