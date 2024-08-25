@@ -24,16 +24,10 @@ def _connect_to_soquete(address):
     return soqueteServer
 
 def _list_messages(*args):
-    message = "This is the body of the message."
-    author = "Author Name"
-
     author_width = 20
     message_width = 40
 
-    # Print the table headers
     print("\t{:<{author_width}} | {:<{message_width}}".format("Author", "Message", author_width=author_width, message_width=message_width))
-
-    # Print a separator line
     print("\t" + "-" * author_width + "-+-" + "-" * message_width)
 
     for message in reversed(messages):
@@ -76,12 +70,15 @@ def send(name, *args):
 
     destinatario_data_server = _get_client(destinatario, serverAddress)
 
+    if not destinatario_data_server:
+        clients_registered.remove(destinatario_data[0])
+        return
+
     if not destinatario_data_server["port"] == destinatario_data[0]["port"]:
         index = clients_registered.index(destinatario_data[0])
         clients_registered[index] = destinatario_data_server
         destinatario_data[0] = destinatario_data_server
 
-    print(clients_registered)
     soqueteDestinatario = _connect_to_soquete((destinatario_data[0]["host"], destinatario_data[0]["port"]))
     _send_to_soquete(request, soqueteDestinatario)
 
@@ -101,6 +98,14 @@ def _exit(*args):
         client = args[1]
         soquete = _connect_to_soquete((client["host"], client["port"]))
         _send_to_soquete(request, soquete)
+
+        server_address = ('127.0.0.1', 5000)
+        soquete_server = _connect_to_soquete(server_address)
+        request = {
+            "action": "remove",
+            "client": client
+        }
+        response = _send_to_soquete(request, soquete_server)
 
 
 def handle_client(soquete):
