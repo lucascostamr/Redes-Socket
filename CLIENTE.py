@@ -43,6 +43,18 @@ def connectSoqueteDestinatario(connection):
     soquete.connect(connection)
     return soquete
 
+def _get_client(destinatario, serverAddress):
+    requestDestinatario = {
+        "action": "get_client",
+        "client_name": destinatario
+    }
+    soqueteServer = _connect_to_soquete(serverAddress)
+    destinatario_data = _send_to_soquete(requestDestinatario, soqueteServer)
+    if not destinatario_data:
+        print("Destinatario nao encontrado")
+        return
+    return destinatario_data
+
 def send(name, *args):
     destinatario = raw_input("Digite o destinatario: \n")
     message = raw_input("Digite a mensagem: \n")
@@ -54,25 +66,27 @@ def send(name, *args):
         "message": message
     }
 
-    destinatarioAddress = [client for client in clients_registered if client["name"] == destinatario]
+    destinatario_data = [client for client in clients_registered if client["name"] == destinatario]
 
-    if not destinatarioAddress:
-        requestDestinatario = {
-            "action": "get_client",
-            "client_name": destinatario
-        }
-        serverAddress = ('127.0.0.1', 5000)
-        soqueteServer = _connect_to_soquete(serverAddress)
-        destinatarioAddress = _send_to_soquete(requestDestinatario, soqueteServer)
-        if not destinatarioAddress:
-            print("Destinatario nao encontrado")
+    if not destinatario_data:
+        server_address = ('127.0.0.1', 5000)
+        destinatario_data_server = _get_client(destinatario, server_address)
+        if not destinatario_data_server:
             return
-        soqueteDestinatario = _connect_to_soquete((destinatarioAddress["host"], destinatarioAddress["port"]))
-        _send_to_soquete(request, soqueteDestinatario)
-        clients_registered.append(destinatarioAddress)
+        soquete_destinatario = _connect_to_soquete((destinatario_data_server["host"], destinatario_data_server["port"]))
+        _send_to_soquete(request, soquete_destinatario)
+        clients_registered.append(destinatario_data_server)
         return
 
-    soqueteDestinatario = _connect_to_soquete((destinatarioAddress[0]["host"], destinatarioAddress[0]["port"]))
+    destinatario_data_server = _get_client(destinatario, serverAddress)
+
+    if not destinatario_data_server["port"] == destinatario_data[0]["port"]:
+        index = clients_registered.index(destinatario_data[0])
+        clients_registered[index] = destinatario_data_server
+        destinatario_data[0] = destinatario_data_server
+
+    print(clients_registered)
+    soqueteDestinatario = _connect_to_soquete((destinatario_data[0]["host"], destinatario_data[0]["port"]))
     _send_to_soquete(request, soqueteDestinatario)
 
 def get_message(message, *args):
