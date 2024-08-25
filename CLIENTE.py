@@ -17,10 +17,10 @@ def _send_to_soquete(request, soquete):
     return json.loads(response)
 
 def _connect_to_soquete(address):
-    soqueteServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    soqueteAddress = (address[0], address[1])
-    soqueteServer.connect(soqueteAddress)
-    return soqueteServer
+    soquete_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    soquete_address = (address[0], address[1])
+    soquete_server.connect(soquete_address)
+    return soquete_server
 
 def _list_messages(*args):
     author_width = 20
@@ -37,8 +37,8 @@ def _get_client(destinatario, serverAddress):
         "action": "get_client",
         "client_name": destinatario
     }
-    soqueteServer = _connect_to_soquete(serverAddress)
-    destinatario_data = _send_to_soquete(requestDestinatario, soqueteServer)
+    soquete_server = _connect_to_soquete(serverAddress)
+    destinatario_data = _send_to_soquete(requestDestinatario, soquete_server)
     if not destinatario_data:
         print("Destinatario nao encontrado")
         return
@@ -48,20 +48,20 @@ def _get_client_list(serverAddress):
     request = {
         "action": "get_client_list"
     }
-    soqueteServer = _connect_to_soquete(serverAddress)
-    destinatarios = _send_to_soquete(request, soqueteServer)
+    soquete_server = _connect_to_soquete(serverAddress)
+    destinatarios = _send_to_soquete(request, soquete_server)
     if not destinatarios:
         print("Nenhum destinatario encontrado")
         return
     return destinatarios
 
-def send(name, *args):
+def send(client, *args):
     destinatario = raw_input("Digite o destinatario: \n")
     message = raw_input("Digite a mensagem: \n")
 
     request = {
         "action": "save_message",
-        "name": name,
+        "name": client["name"],
         "destinatario": destinatario,
         "message": message
     }
@@ -89,10 +89,10 @@ def send(name, *args):
         clients[index] = destinatario_data_server
         destinatario_data[0] = destinatario_data_server
 
-    soqueteDestinatario = _connect_to_soquete((destinatario_data[0]["host"], destinatario_data[0]["port"]))
+    soquete_destinatario = _connect_to_soquete((destinatario_data[0]["host"], destinatario_data[0]["port"]))
     _send_to_soquete(request, soqueteDestinatario)
 
-def send_all(name, *args):
+def send_all(client, *args):
     message = raw_input("Digite a mensagem: \n")
 
     server_address = ('127.0.0.1', 5000)
@@ -103,7 +103,7 @@ def send_all(name, *args):
 
         request = {
             "action": "save_message",
-            "name": name,
+            "name": client["name"],
             "destinatario": destinatario_data["name"],
             "message": message
         }
@@ -117,14 +117,13 @@ def _save_message(message, *args):
     conexao.send(json.dumps({"connection": "closed"}).encode('utf-8'))
     conexao.close()
 
-def _exit(*args):
+def _exit(client, *args):
     with lock:
         global continuar
         continuar = False
         request = {
-            "action": "3",
+            "action": "exit",
         }
-        client = args[1]
         soquete = _connect_to_soquete((client["host"], client["port"]))
         _send_to_soquete(request, soquete)
 
@@ -136,20 +135,39 @@ def _exit(*args):
         }
         response = _send_to_soquete(request, soquete_server)
 
-
 def handle_client(soquete):
+    print("\nCliente  iniciado e aguardando conexões...")
     while continuar:
         conexao, cliente = soquete.accept()
         if not continuar:
             conexao.send(json.dumps({"connection": "closed"}).encode('utf-8'))
             break
-        print('Nova menssagem de: ', cliente[1])
+        print('\n\nVoce recebeu uma nova mensagem!')
         message = conexao.recv(1024)
         if not message: break
         data = json.loads(message)
         actions[data["action"]](data, conexao)
     conexao.close()
     print('\nConeccao fechada')
+
+def _register_client():
+    client_name = raw_input("Digite seu nome: \n")
+    request = {
+        "action": "register",
+        "client_name": client_name
+    }
+    server_address = ('127.0.0.1', 5000)
+    soquete_server = _connect_to_soquete(server_address)
+    client = _send_to_soquete(request, soquete_server)
+    return client
+
+def _init_client():
+    client = _register_client()
+    soquete_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    soquete_client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    soquete_client.bind(('127.0.0.1', client["port"]))
+    soquete_client.listen(5)
+    return [soquete_client, client]
 
 actions = {
     "1": _list_messages,
@@ -159,30 +177,19 @@ actions = {
     "save_message": _save_message
 }
 
-client_name = raw_input("Digite seu nome: \n")
+def main():
+    soquete_client, client = _init_client()
 
-request = {
-    "action": "register",
-    "client_name": client_name
-}
+    client_thread = threading.Thread(
+        target=handle_client,
+        args=(soquete_client,)
+    )
+    client_thread.start()
 
-serverAddress = ('127.0.0.1', 5000)
-soqueteServer = _connect_to_soquete(serverAddress)
-response = _send_to_soquete(request, soqueteServer)
+    while continuar:
+        option = raw_input("\n\nListar (1) | Enviar (2) | Eviar para todos (3) | Sair (4): \n")
+        actions[option](client)
 
-soqueteClient = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-soqueteClient.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-soqueteClient.bind(('127.0.0.1', response["port"]))
-soqueteClient.listen(5)
 
-print("\nCliente  iniciado e aguardando conexões...")
-
-client_thread = threading.Thread(
-    target=handle_client,
-    args=(soqueteClient,)
-)
-client_thread.start()
-
-while continuar:
-    option = raw_input("\n\nListar (1) | Enviar (2) | Eviar para todos (3) | Sair (4): \n")
-    actions[option](client_name, response)
+if __name__ == "__main__":
+    main()
