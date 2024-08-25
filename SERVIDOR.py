@@ -42,10 +42,6 @@ def save(data, *args):
 
         conexao.send(json.dumps(is_client).encode('utf-8'))
 
-def list_clients(*args):
-    with lock:
-        conexao.send(json.dumps(clients).encode('utf-8'))
-
 def get_client(data, *args):
     with lock:
         filtered_client = [client for client in clients if client["name"] == data["client_name"]]
@@ -65,7 +61,6 @@ def remove_client(data, *args):
     conexao.send(json.dumps({"message": "client removed"}).encode('utf-8'))
 
 actions = {
-    "list": list_clients,
     "get_client": get_client,
     "get_client_list": get_client_list,
     "register": save,

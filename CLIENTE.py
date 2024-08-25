@@ -7,7 +7,7 @@ lock = threading.Lock()
 
 continuar = True
 
-clients_registered = []
+clients = []
 messages = []
 
 def _send_to_soquete(request, soquete):
@@ -17,7 +17,6 @@ def _send_to_soquete(request, soquete):
     return json.loads(response)
 
 def _connect_to_soquete(address):
-    print(address)
     soqueteServer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     soqueteAddress = (address[0], address[1])
     soqueteServer.connect(soqueteAddress)
@@ -61,13 +60,13 @@ def send(name, *args):
     message = raw_input("Digite a mensagem: \n")
 
     request = {
-        "action": "4",
+        "action": "save_message",
         "name": name,
         "destinatario": destinatario,
         "message": message
     }
 
-    destinatario_data = [client for client in clients_registered if client["name"] == destinatario]
+    destinatario_data = [client for client in clients if client["name"] == destinatario]
 
     if not destinatario_data:
         server_address = ('127.0.0.1', 5000)
@@ -76,18 +75,18 @@ def send(name, *args):
             return
         soquete_destinatario = _connect_to_soquete((destinatario_data_server["host"], destinatario_data_server["port"]))
         _send_to_soquete(request, soquete_destinatario)
-        clients_registered.append(destinatario_data_server)
+        clients.append(destinatario_data_server)
         return
 
     destinatario_data_server = _get_client(destinatario, serverAddress)
 
     if not destinatario_data_server:
-        clients_registered.remove(destinatario_data[0])
+        clients.remove(destinatario_data[0])
         return
 
     if not destinatario_data_server["port"] == destinatario_data[0]["port"]:
-        index = clients_registered.index(destinatario_data[0])
-        clients_registered[index] = destinatario_data_server
+        index = clients.index(destinatario_data[0])
+        clients[index] = destinatario_data_server
         destinatario_data[0] = destinatario_data_server
 
     soqueteDestinatario = _connect_to_soquete((destinatario_data[0]["host"], destinatario_data[0]["port"]))
@@ -98,12 +97,12 @@ def send_all(name, *args):
 
     server_address = ('127.0.0.1', 5000)
     destinatarios = _get_client_list(server_address)
-    clients_registered = destinatarios
+    clients = destinatarios
 
     for destinatario_data in destinatarios:
 
         request = {
-            "action": "5",
+            "action": "save_message",
             "name": name,
             "destinatario": destinatario_data["name"],
             "message": message
@@ -112,7 +111,7 @@ def send_all(name, *args):
         soqueteDestinatario = _connect_to_soquete((destinatario_data["host"], destinatario_data["port"]))
         _send_to_soquete(request, soqueteDestinatario)
 
-def get_message(message, *args):
+def _save_message(message, *args):
     messages.append(message)
     conexao = args[0]
     conexao.send(json.dumps({"connection": "closed"}).encode('utf-8'))
@@ -144,20 +143,20 @@ def handle_client(soquete):
         if not continuar:
             conexao.send(json.dumps({"connection": "closed"}).encode('utf-8'))
             break
-        print('Conectado por: ', cliente[1])
+        print('Nova menssagem de: ', cliente[1])
         message = conexao.recv(1024)
         if not message: break
         data = json.loads(message)
         actions[data["action"]](data, conexao)
     conexao.close()
-    print('Coneccao fechada')
+    print('\nConeccao fechada')
 
 actions = {
     "1": _list_messages,
     "2": send,
     "3": send_all,
     "4": _exit,
-    "5": get_message
+    "save_message": _save_message
 }
 
 client_name = raw_input("Digite seu nome: \n")
@@ -176,7 +175,7 @@ soqueteClient.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 soqueteClient.bind(('127.0.0.1', response["port"]))
 soqueteClient.listen(5)
 
-print("Cliente  iniciado e aguardando conexões...")
+print("\nCliente  iniciado e aguardando conexões...")
 
 client_thread = threading.Thread(
     target=handle_client,
@@ -185,5 +184,5 @@ client_thread = threading.Thread(
 client_thread.start()
 
 while continuar:
-    option = raw_input("Listar (1) | Enviar (2) | Eviar para todos (3) | Sair (4): \n")
+    option = raw_input("\n\nListar (1) | Enviar (2) | Eviar para todos (3) | Sair (4): \n")
     actions[option](client_name, response)
