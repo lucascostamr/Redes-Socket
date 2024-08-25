@@ -8,6 +8,7 @@ lock = threading.Lock()
 continuar = True
 
 clients_registered = []
+messages = []
 
 def _send_to_soquete(request, soquete):
     soquete.send(json.dumps(request).encode('utf-8'))
@@ -22,26 +23,21 @@ def _connect_to_soquete(address):
     soqueteServer.connect(soqueteAddress)
     return soqueteServer
 
-def _list(name):
-    data = {
-        "action": "list",
-        "name": name
-    }
+def _list_messages(*args):
+    message = "This is the body of the message."
+    author = "Author Name"
 
-    soqueteServer.send(json.dumps(data).encode('utf-8'))
-    response = soqueteServer.recv(1024)
-    messages = json.loads(response)
+    author_width = 20
+    message_width = 40
 
-    print("\nMensagens recebidas:")
-    for msg in messages:
-        print("De {}: {}".format(msg["name"], msg["message"]))
+    # Print the table headers
+    print("\t{:<{author_width}} | {:<{message_width}}".format("Author", "Message", author_width=author_width, message_width=message_width))
 
-def connectSoqueteDestinatario(connection):
-    if len(connection) == 0:
-        return None
-    soquete = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    soquete.connect(connection)
-    return soquete
+    # Print a separator line
+    print("\t" + "-" * author_width + "-+-" + "-" * message_width)
+
+    for message in reversed(messages):
+        print("\t{:<{author_width}} | {:<{message_width}}".format(message["name"], message["message"], author_width=author_width, message_width=message_width))
 
 def _get_client(destinatario, serverAddress):
     requestDestinatario = {
@@ -90,7 +86,7 @@ def send(name, *args):
     _send_to_soquete(request, soqueteDestinatario)
 
 def get_message(message, *args):
-    print(message)
+    messages.append(message)
     conexao = args[0]
     conexao.send(json.dumps({"connection": "closed"}).encode('utf-8'))
     conexao.close()
@@ -103,7 +99,6 @@ def _exit(*args):
             "action": "3",
         }
         client = args[1]
-        print(client)
         soquete = _connect_to_soquete((client["host"], client["port"]))
         _send_to_soquete(request, soquete)
 
@@ -123,7 +118,7 @@ def handle_client(soquete):
     print('Coneccao fechada')
 
 actions = {
-    "1": _list,
+    "1": _list_messages,
     "2": send,
     "3": _exit,
     "4": get_message
