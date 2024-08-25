@@ -7,44 +7,64 @@ host = '127.0.0.1'
 porta = 5000
 
 clients = []
-messages = []
+
 lock = threading.Lock()
 
-def add_client(data, *args):
+def _get_available_port():
+    temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    temp_socket.bind((host, 0))
+    _, port = temp_socket.getsockname()
+    temp_socket.close()
+    return port
+
+def _update_client_port(client_name, new_port):
+    for client in clients:
+        if client.get("name") == client_name:
+            client["port"] = new_port
+            return client
+    return None
+
+def save(data, *args):
+    client_port = _get_available_port()
     with lock:
         host, port = args[0]
-        client = {
-            "name": data["client_name"],
-            "host": host,
-            "port": port
-        }
-        clients.append(data)
+
+        is_client = _update_client_port(data["client_name"], client_port)
+
+        if not is_client:
+            new_client = {
+                "name": data["client_name"],
+                "host": host,
+                "port": client_port
+            }
+            clients.append(new_client)
+            conexao.send(json.dumps(new_client).encode('utf-8'))
+
+        conexao.send(json.dumps(is_client).encode('utf-8'))
 
 def get_client(data, *args):
     with lock:
-        client = [client for client in clients if client == data[name]]
-        conexao.send(json.dumps(client).encode('utf-8'))
+        filtered_client = [client for client in clients if client["name"] == data["client_name"]]
+        if not filtered_client:
+            conexao.send(json.dumps([]))
+            return
 
-def save(data, *args):
-    with lock:
-        clients.append(data)
-        print('Cliente salvo: {}'.format(data))
-        getClient(data)
+        conexao.send(json.dumps(filtered_client[0]).encode('utf-8'))
 
-def _list(*args):
+def get_client_list(*args):
     with lock:
         conexao.send(json.dumps(clients).encode('utf-8'))
 
-def getClient(data, *args):
-    filtered_client = [client for client in messages if client["name"] == data["destinatario"]]
-    with lock:
-        conexao.send(json.dumps(filtered_client).encode('utf-8'))
+def remove_client(data, *args):
+    client = data["client"]
+    clients.remove(client)
+    conexao.send(json.dumps({"message": "client removed"}).encode('utf-8'))
 
 actions = {
-    "save": save,
-    "list": _list,
     "get_client": get_client,
-    "register": add_client
+    "get_client_list": get_client_list,
+    "register": save,
+    "remove": remove_client
 }
 
 def handle_client(conexao, cliente):
@@ -55,7 +75,7 @@ def handle_client(conexao, cliente):
         data = json.loads(message)
         actions[data["action"]](data, cliente)
     conexao.close()
-
+    print('Coneccao fechada')
 
 soquete = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 origem = (host, porta)
