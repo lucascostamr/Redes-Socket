@@ -55,6 +55,10 @@ def get_client(data, *args):
 
         conexao.send(json.dumps(filtered_client[0]).encode('utf-8'))
 
+def get_client_list(*args):
+    with lock:
+        conexao.send(json.dumps(clients).encode('utf-8'))
+
 def remove_client(data, *args):
     client = data["client"]
     clients.remove(client)
@@ -63,6 +67,7 @@ def remove_client(data, *args):
 actions = {
     "list": list_clients,
     "get_client": get_client,
+    "get_client_list": get_client_list,
     "register": save,
     "remove": remove_client
 }

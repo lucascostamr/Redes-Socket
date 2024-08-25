@@ -45,6 +45,17 @@ def _get_client(destinatario, serverAddress):
         return
     return destinatario_data
 
+def _get_client_list(serverAddress):
+    request = {
+        "action": "get_client_list"
+    }
+    soqueteServer = _connect_to_soquete(serverAddress)
+    destinatarios = _send_to_soquete(request, soqueteServer)
+    if not destinatarios:
+        print("Nenhum destinatario encontrado")
+        return
+    return destinatarios
+
 def send(name, *args):
     destinatario = raw_input("Digite o destinatario: \n")
     message = raw_input("Digite a mensagem: \n")
@@ -81,6 +92,25 @@ def send(name, *args):
 
     soqueteDestinatario = _connect_to_soquete((destinatario_data[0]["host"], destinatario_data[0]["port"]))
     _send_to_soquete(request, soqueteDestinatario)
+
+def send_all(name, *args):
+    message = raw_input("Digite a mensagem: \n")
+
+    server_address = ('127.0.0.1', 5000)
+    destinatarios = _get_client_list(server_address)
+    clients_registered = destinatarios
+
+    for destinatario_data in destinatarios:
+
+        request = {
+            "action": "5",
+            "name": name,
+            "destinatario": destinatario_data["name"],
+            "message": message
+        }
+
+        soqueteDestinatario = _connect_to_soquete((destinatario_data["host"], destinatario_data["port"]))
+        _send_to_soquete(request, soqueteDestinatario)
 
 def get_message(message, *args):
     messages.append(message)
@@ -125,8 +155,9 @@ def handle_client(soquete):
 actions = {
     "1": _list_messages,
     "2": send,
-    "3": _exit,
-    "4": get_message
+    "3": send_all,
+    "4": _exit,
+    "5": get_message
 }
 
 client_name = raw_input("Digite seu nome: \n")
@@ -154,5 +185,5 @@ client_thread = threading.Thread(
 client_thread.start()
 
 while continuar:
-    option = raw_input("Listar (1) | Enviar (2) | Sair (3): \n")
+    option = raw_input("Listar (1) | Enviar (2) | Eviar para todos (3) | Sair (4): \n")
     actions[option](client_name, response)
